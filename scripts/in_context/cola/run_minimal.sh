@@ -29,8 +29,8 @@ port=$5
 
 for data_seed in 0 1 2 3 4 5 6 7 8 9
 do
-    $PYTHON_BIN/deepspeed \
-        --include localhost:0,1,2,3,4,5,6,7 \
+    deepspeed \
+        --include localhost:$CUDA_VISIBLE_DEVICES \
         --master_port $port \
         $PROJECT_DIR/eval.py \
         --model_name_or_path $model_name_or_path \

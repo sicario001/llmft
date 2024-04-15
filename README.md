@@ -52,26 +52,15 @@ In order to fine-tune (very) large models (>1.3b parameters) we heavily realy on
 
 ## Setup
 
-1. Create docker image: 
-    
-        docker build -f ./docker/Dockerfile \
-            --build-arg USER_UID=$UID \
-            --build-arg USER_NAME=$(id -un) \
-            -t llmft:22.08-py3 .
+1. Build docker image
+```./docker.sh --build```
+Change the `base_path` in `docker.sh` to the path of your project.
 
-Depending on your NVIDIA CUDA and NVIDIA driver version you will have to change the `FROM nvcr.io/nvidia/pytorch:22.08-py3` line of the Docker [file](docker/Dockerfile). You can find the correct version [here](https://docs.nvidia.com/deeplearning/frameworks/support-matrix/index.html#framework-matrix-2022).
+2. Run docker container
+```./docker.sh --run```
 
-2. Create docker container:
-
-        docker run -it --rm --gpus=all --pid=host --ipc=host --user <username> \
-            -v <path/to/llmft>:/llmft \
-            -v <path/to/datasets>:/datasets \
-            -v <path/to/logfiles>:/logfiles \
-            -v /<path/to/.cache>:/cache \
-            llmft:22.08-py3
-
-Make sure to replace `<username>`, `</path/to/llmft>`, etc.
-
+3. Setup the environment
+```source ./scripts/misc/setup.sh```
 
 # Memory requirements
 
