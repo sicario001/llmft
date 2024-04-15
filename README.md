@@ -62,6 +62,9 @@ Change the `base_path` in `docker.sh` to the path of your project.
 3. Setup the environment
 ```source ./scripts/misc/setup.sh```
 
+4. Sample command
+```./scripts/pattern_verbalizer_ft/cola/run.sh cola 16 5 0.1 4 1 0.0001 facebook/opt-125m 12345```
+
 # Memory requirements
 
 We make use of deepspeed ZeRO-3 to finetune large models. Below are [estimates](https://deepspeed.readthedocs.io/en/latest/memory.html) of the memory requirements needed to train *all paramters* of the largest OPT models. We assume that you have access to a machine with at least 4 GPUs.
