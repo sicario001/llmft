@@ -18,8 +18,8 @@ SUPPORTED_MODELS = [
     "facebook/opt-66b",
 
     # Path to LLaMA models
-    "/home/mmosbach/cache/llama/hf/7B",
-    "/home/mmosbach/cache/llama/hf/13B",
+    "/cache/llama/hf/7B",
+    "/cache/llama/hf/13B",
 
     # GPT-NeoX
     "EleutherAI/gpt-neox-20b",

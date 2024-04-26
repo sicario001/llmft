@@ -3,8 +3,8 @@
 # --run the docker image
 
 # Base path /home/rayyan/Projects/GaTech/CS7643/project/
-base_path="/home/rayyan/Projects/GaTech/CS7643/project"
-
+# base_path="/home/anmol/gt/dl/project"
+base_path="/home/user/dl"
 
 # Build the docker image
 if [[ $1 == "--build" ]]; then
@@ -13,7 +13,7 @@ fi
 
 # Run the docker container
 if [[ $1 == "--run" ]]; then
-    docker run -it --rm --gpus=all --pid=host --ipc=host --user rayyan --env-file ./docker/dev.env \
+    docker run -it --rm --gpus=all --pid=host --ipc=host --user user --env-file ./docker/dev.env \
         -v $base_path/llmft:/llmft \
         -v $base_path/datasets:/datasets \
         -v $base_path/logfiles:/logfiles \

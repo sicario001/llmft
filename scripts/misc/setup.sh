@@ -31,7 +31,7 @@ mkdir -p $HF_MODELS_CACHE
 mkdir -p $TORCH_EXTENSIONS_DIR
 
 # set path to python
-# export PYTHON_BIN="/home/mmosbach/miniconda3/envs/llmft/bin"
+# export PYTHON_BIN="/miniconda3/envs/llmft/bin"
 
 # rename GPUs
 source $PROJECT_DIR/scripts/misc/rename_gpu_ids.sh
