@@ -44,7 +44,7 @@ from torch import nn
 import torch
 import torch.distributed as dist
 from typing import Callable, Dict, List, Optional, Tuple, Union, Any
-import os
+import os, shutil
 import logging
 import numpy as np
 import time
@@ -834,10 +834,15 @@ class FtTrainer(Trainer):
             else:
                 metrics = self.evaluate(ignore_keys=ignore_keys_for_eval)
 
-        if self.control.should_save:
-            self._save_checkpoint(model, trial, metrics=metrics)
-            self.control = self.callback_handler.on_save(
-                self.args, self.state, self.control)
+        # if self.control.should_save:
+        prev_checkpoint_folder = f"checkpoint-{self.state.global_step-1}"
+        run_dir = self._get_output_dir(trial=trial)
+        output_dir = os.path.join(run_dir, prev_checkpoint_folder)
+        self._save_checkpoint(model, trial, metrics=metrics)
+        self.control = self.callback_handler.on_save(
+            self.args, self.state, self.control)
+        if os.path.exists(output_dir):
+            shutil.rmtree(output_dir, ignore_errors=True)
 
     def evaluate(
         self,
