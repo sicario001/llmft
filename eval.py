@@ -594,20 +594,19 @@ def main():
             labels = outputs.label_ids
             metrics = outputs.metrics
             all_results = {**metrics, **all_results}
-            # output_predict_file = os.path.join(
-            #     training_args.output_dir, f"predict_results_{task}.txt")
+            output_predict_file = os.path.join(
+                training_args.output_dir, f"predict_results_{task_name}.txt")
 
-        if trainer.is_world_process_zero():
-
-            #     with open(output_predict_file, "w") as writer:
-            #         logger.info(f"***** Predict results {task} *****")
-            #         writer.write("index\tprediction\n")
-            #         for index, item in enumerate(predictions):
-            #             if is_regression:
-            #                 writer.write(f"{index}\t{item:3.3f}\n")
-            #             else:
-            #                 item = label_list[item]
-            #                 writer.write(f"{index}\t{item}\n")
+            if trainer.is_world_process_zero():
+                with open(output_predict_file, "w") as writer:
+                    logger.info(f"***** Predict results {task_name} *****")
+                    writer.write("index\tprediction\n")
+                    for index, item in enumerate(predictions):
+                        if is_regression:
+                            writer.write(f"{index}\t{item:3.3f}\n")
+                        else:
+                            item = target_tokens_ids[np.argmax([item[target_tokens_ids[0]], item[target_tokens_ids[1]]])]
+                            writer.write(f"{index}\t{item}\n")
 
             # Save everything to in a dataframe
             all_results = _add_args_to_results(in_context_args, all_results)

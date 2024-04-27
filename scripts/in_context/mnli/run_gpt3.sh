@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-OUTPUT_DIR=$PROJECT_DIR/logfiles/in_context_eval
+OUTPUT_DIR=$PROJECT_DIR/logfiles/in_context_eval_gpt3
 mkdir -p $OUTPUT_DIR
 
 # args: task_name, num_shots, model_name_or_path, gpu, port
@@ -35,7 +35,7 @@ port=$5
 # --separate_shots_by "\n\n" \
 # --group "eval-harness" \
 
-for data_seed in 0 1 2 3 4 5 6 7 8 9
+for data_seed in 0 1 2 3 4 #  5 6 7 8 9
 do
     deepspeed \
         --include localhost:$CUDA_VISIBLE_DEVICES \
@@ -51,7 +51,7 @@ do
         --group "gpt-3" \
         --dataset_cache_dir $HF_DATASETS_CACHE \
         --max_seq_length 2048 \
-        --output_dir $OUTPUT_DIR \
+        --output_dir $OUTPUT_DIR-m$model_name_or_path-c$num_shots-s$data_seed \
         --do_eval  \
         --eval_task_name "hans" \
         --per_device_eval_batch_size 10 \
