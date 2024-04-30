@@ -484,7 +484,7 @@ def main():
         if ft_args.context_distillation:
             train_dataset = _select_random_subset(raw_datasets["train"], 137)[0]
             # train_dataset['labels'] = None
-            train_dataset.map(
+            train_dataset = train_dataset.map(
                 update_labels,
                 batched=True,
                 batch_size=data_args.max_train_samples,
