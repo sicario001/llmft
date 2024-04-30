@@ -49,6 +49,7 @@ import logging
 import numpy as np
 import time
 import math
+import json
 import sys
 from tqdm.auto import tqdm
 
@@ -822,6 +823,19 @@ class FtTrainer(Trainer):
 
             self.log(logs)
 
+        # if self.control.should_save:
+        prev_checkpoint_folder = f"checkpoint-{self.state.global_step-1}"
+        curr_checkpoint_folder = f"checkpoint-{self.state.global_step}"
+        run_dir = self._get_output_dir(trial=trial)
+        prev_output_dir = os.path.join(run_dir, prev_checkpoint_folder)
+        curr_output_dir = os.path.join(run_dir, curr_checkpoint_folder)
+        self.save_model(curr_output_dir)
+        self.control = self.callback_handler.on_save(
+            self.args, self.state, self.control)
+        if os.path.exists(prev_output_dir):
+            shutil.rmtree(prev_output_dir, ignore_errors=True)
+
+        
         metrics = None
         if self.control.should_evaluate:
             if isinstance(self.eval_dataset, dict):
@@ -831,18 +845,11 @@ class FtTrainer(Trainer):
                         ignore_keys=ignore_keys_for_eval,
                         metric_key_prefix=f"eval_{eval_dataset_name}",
                     )
+                    # save the metrics dictionary in a json file for each eval_dataset in curr_output_dir
+                    with open(os.path.join(curr_output_dir, f"eval_{eval_dataset_name}_metrics.json"), "w") as f:
+                        json.dump(metrics, f)
             else:
                 metrics = self.evaluate(ignore_keys=ignore_keys_for_eval)
-
-        # if self.control.should_save:
-        prev_checkpoint_folder = f"checkpoint-{self.state.global_step-1}"
-        run_dir = self._get_output_dir(trial=trial)
-        output_dir = os.path.join(run_dir, prev_checkpoint_folder)
-        self._save_checkpoint(model, trial, metrics=metrics)
-        self.control = self.callback_handler.on_save(
-            self.args, self.state, self.control)
-        if os.path.exists(output_dir):
-            shutil.rmtree(output_dir, ignore_errors=True)
 
     def evaluate(
         self,

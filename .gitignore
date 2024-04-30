@@ -1,3 +1,11 @@
 __pycache__
 .vscode
 *.pdf
+*.pt
+*.pth
+*.bin
+# not ignore this files
+*.json
+!*metrics.json
+!*results.json
+*wandb*

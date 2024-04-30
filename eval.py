@@ -48,7 +48,7 @@ from options import DataTrainingArguments, ModelArguments, InContextLearningArgu
 from utils import create_dir, get_timestamp
 from task_utils import task_to_keys, load_glue_datasets, load_hans_dataset, load_mnli_mismatched_dataset, load_paws_qqp_dataset, load_cola_ood_dataset
 from ft_trainer import FtTrainer
-from eval_utils import create_few_shot_context, add_context_to_dataset, _select_subset_by_idx
+from eval_utils import create_few_shot_context, add_context_to_dataset, _select_subset_by_idx, _select_random_subset
 from models.opt_wrapper import OPTWithLMClassifier
 from models.llama_wrapper import LlamaWithLMClassifier
 from models.gptneox_wrapper import GPTNeoXWithLMClassifier
@@ -89,16 +89,29 @@ def _load_model(model_args):
     )
 
     if "facebook/opt" in model_args.model_name_or_path:
-
-        model = OPTWithLMClassifier.from_pretrained(
-            model_args.model_name_or_path,
-            from_tf=bool(".ckpt" in model_args.model_name_or_path),
-            config=config,
-            cache_dir=model_args.cache_dir,
-            revision=model_args.model_revision,
-            use_auth_token=True if model_args.use_auth_token else None,
-            ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
-        )
+        # print("92"*100)
+        # print(model_args.model_name_or_path, model_args.model_local_path)
+        if model_args.model_local_path is not None:
+            print("PRETRAINED FINE TUNED")
+            model = OPTWithLMClassifier.from_pretrained(
+                model_args.model_local_path,
+                torch_dtype=torch.float16,
+            )
+        else:
+            model = OPTWithLMClassifier.from_pretrained(
+                model_args.model_name_or_path,
+                from_tf=bool(".ckpt" in model_args.model_name_or_path),
+                config=config,
+                cache_dir=model_args.cache_dir,
+                revision=model_args.model_revision,
+                use_auth_token=True if model_args.use_auth_token else None,
+                ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
+            )
+        # print("PRINTING MODEL WEIGHTS")
+        # print(model.lm_head.weight.shape)
+        # print(model.lm_head.weight[0])
+        # print(model.lm_head.weight)
+        # print(model)
 
     # elif "gpt-j" in model_args.model_name_or_path:
     #     # We need to add a padding token for gpt-j
@@ -190,6 +203,11 @@ def main():
 
     # Enable/disable wandb logging
     os.environ["WANDB_DISABLED"] = "True"
+    
+    # get environ variable for RECORD_TRAIN_LABELS
+    record_train_labels = os.environ.get("RECORD_TRAIN_LABELS", "False") == "True"
+
+    print(f"record_train_labels: {record_train_labels}")
 
     # Setup logging
     logging.basicConfig(
@@ -261,6 +279,9 @@ def main():
     # -------------------------------------------------
 
     # --------------- Preprocessing the raw_datasets ---------------
+
+    if record_train_labels:
+        additional_evaluation_datasets = {}
 
     if data_args.task_name is not None:
         sentence1_key, sentence2_key = task_to_keys[data_args.task_name]
@@ -400,9 +421,15 @@ def main():
 
         return result
 
+    eval_indices = None
     if training_args.do_eval:
         # Get the in-domain validation dataset
-        eval_dataset = raw_datasets["validation_matched" if data_args.task_name in
+        if record_train_labels:
+            eval_dataset = _select_random_subset(raw_datasets["train"], 137)[0]
+            print("Size: ", len(eval_dataset))
+            eval_indices = eval_dataset["idx"]
+        else:
+            eval_dataset = raw_datasets["validation_matched" if data_args.task_name in
                                     ["mnli", "mnli-original"] else "validation"]
 
         # (optional) subsample eval datasets
@@ -460,17 +487,17 @@ def main():
                 load_from_cache_file=False,
                 desc="Running tokenizer on dataset",
             )
-
-            for name, dataset in additional_evaluation_datasets.items():
-                sentence1_key, sentence2_key = task_to_keys[data_args.eval_task_name]
-                dataset = dataset.map(
-                    preprocess_function,
-                    batched=True,
-                    batch_size=1000,
-                    load_from_cache_file=False,
-                    desc="Running tokenizer on dataset",
-                )
-                additional_evaluation_datasets[name] = dataset
+            if not record_train_labels:
+                for name, dataset in additional_evaluation_datasets.items():
+                    sentence1_key, sentence2_key = task_to_keys[data_args.eval_task_name]
+                    dataset = dataset.map(
+                        preprocess_function,
+                        batched=True,
+                        batch_size=1000,
+                        load_from_cache_file=False,
+                        desc="Running tokenizer on dataset",
+                    )
+                    additional_evaluation_datasets[name] = dataset
 
     # Log a few random samples from the validation set:
     for index in random.sample(range(len(eval_dataset)), 1):
@@ -581,9 +608,10 @@ def main():
 
         # Get datasets
         eval_task_names = [data_args.task_name]
-        eval_task_names += [task_name for task_name in additional_evaluation_datasets.keys()]
         eval_datasets = [eval_dataset]
-        eval_datasets += [dataset for _,
+        if not record_train_labels:
+            eval_task_names += [task_name for task_name in additional_evaluation_datasets.keys()]
+            eval_datasets += [dataset for _,
                           dataset in additional_evaluation_datasets.items()]
 
         all_results = {}
@@ -595,18 +623,21 @@ def main():
             metrics = outputs.metrics
             all_results = {**metrics, **all_results}
             output_predict_file = os.path.join(
-                training_args.output_dir, f"predict_results_{task_name}.txt")
+                training_args.output_dir, f"predict_results_{task_name}.csv")
 
             if trainer.is_world_process_zero():
                 with open(output_predict_file, "w") as writer:
                     logger.info(f"***** Predict results {task_name} *****")
-                    writer.write("index\tprediction\n")
+                    writer.write("index,prediction\n")
                     for index, item in enumerate(predictions):
                         if is_regression:
                             writer.write(f"{index}\t{item:3.3f}\n")
                         else:
-                            item = target_tokens_ids[np.argmax([item[target_tokens_ids[0]], item[target_tokens_ids[1]]])]
-                            writer.write(f"{index}\t{item}\n")
+                            item = np.argmax([item[target_tokens_ids[0]], item[target_tokens_ids[1]]])
+                            if record_train_labels:
+                                writer.write(f"{eval_indices[index]},{item}\n")
+                            else:
+                                writer.write(f"{index},{item}\n")
 
             # Save everything to in a dataframe
             all_results = _add_args_to_results(in_context_args, all_results)
@@ -625,12 +656,12 @@ def main():
 
                 file_name = f"{MODEL_NAME}" + \
                     f"_{data_args.task_name}" + \
-                    f"_{data_args.eval_task_name}"
+                    f"_{task_name}"
 
             else:
                 file_name = f"{model_args.model_name_or_path.replace('/', '-')}" + \
                     f"_{data_args.task_name}" + \
-                    f"_{data_args.eval_task_name}"
+                    f"_{task_name}"
 
             output_file = os.path.join(
                 training_args.output_dir, f"{file_name}.csv")

@@ -11,6 +11,12 @@ learning_rate=$7
 model_name_or_path=$8
 port=$9
 
+# context_distillation with default value of False
+context_distillation=${10:-False}
+
+# context_distillation_data_path with default value of null
+context_distillation_data_path=${11:-null}
+
 # we log at the end of every epoch
 logging_steps=$((max_train_samples / (bsz * num_gpus)))
 
@@ -25,14 +31,15 @@ logging_steps=$((max_train_samples / (bsz * num_gpus)))
 
 for seed in "0"
 do
-    for data_seed in "0" "1" "2" "3" "4" "5" "6" "7" "8" "9"
+    for data_seed in "3" "4" # "5" "6" "7" "8" "9" "0" 
     do
         deepspeed \
             --include localhost:$CUDA_VISIBLE_DEVICES \
             --master_port $port \
             $PROJECT_DIR/ft.py \
-            --wandb_project_name llmft-experiments \
-            --wandb_group_name pattern-verbalizer-ft \
+            --disable_wandb "True" \
+            --wandb_project_name LLMFT \
+            --wandb_group_name  gatech-sysml \
             --model_name_or_path $model_name_or_path \
             --cache_dir $HF_MODELS_CACHE \
             --task_name $1 \
@@ -63,6 +70,8 @@ do
             --data_seed $data_seed \
             --deepspeed $PROJECT_DIR/deepspeed_configs/ds_config_zero3.json \
             --deepspeed_stage 3 \
-            --report_to "none"
+            --report_to "none" \
+            --context_distillation $context_distillation \
+            --context_distillation_data_path $context_distillation_data_path
     done
 done

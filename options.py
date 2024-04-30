@@ -40,17 +40,17 @@ class WandbArguments:
         default=False, metadata={"help": "Whether to disable wandb logging."}
     )
     # We provide these via environment variables so we comment this
-    # api_key: Optional[str] = field(
-    #     default=None, metadata={"help": "Your wandb API key."}
-    # )
-    # user_name: Optional[str] = field(
-    #     default=None, metadata={"help": "Your wanbd user name."}
-    # )
-    # entity: Optional[str] = field(
-    #     default=None, metadata={"help": "wandb enitiy. this can be your user name or a team name."}
-    # )
+    api_key: Optional[str] = field(
+        default="", metadata={"help": "Your wandb API key."}
+    )
+    user_name: Optional[str] = field(
+        default="anmolagarwalcp810", metadata={"help": "Your wanbd user name."}
+    )
+    entity: Optional[str] = field(
+        default="anmolagarwalcp810", metadata={"help": "wandb enitiy. this can be your user name or a team name."}
+    )
     wandb_project_name: Optional[str] = field(
-        default="llmft-experiments", metadata={"help": "The name of the wandb project."}
+        default="LLMFT", metadata={"help": "The name of the wandb project."}
     )
     wandb_run_name: Optional[str] = field(
         default=None, metadata={"help": "The name of the current run."}
@@ -89,6 +89,10 @@ class DataTrainingArguments:
     into argparse arguments to be able to specify them on
     the command line.
     """
+
+    context_distillation_data_path: Optional[str] = field(
+        default=None, metadata={"help": "Path to the context distillation training data."}
+    )
 
     task_name: Optional[str] = field(
         default=None,
@@ -277,6 +281,9 @@ class ModelArguments:
             "choices": SUPPORTED_MODELS
         }
     )
+    model_local_path: Optional[str] = field(
+        default=None, metadata={"help": "Path to a local model."}
+    )
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )
@@ -335,6 +342,15 @@ class ModelArguments:
 @dataclass
 class FtArguments:
     # General fine-tuning args
+    context_distillation: bool = field(
+        default=False,
+        metadata={
+            "help": (
+                "Whether to use context distillation."
+            )
+        },
+    )
+
     freeze_embeddings: bool = field(
         default=False,
         metadata={

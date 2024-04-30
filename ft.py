@@ -53,6 +53,8 @@ from models.gptj_wrapper import GPTJWithClassifier, GPTJWithLMClassifier
 from models.opt_wrapper import OPTWithClassifier, OPTWithLMClassifier
 from models.llama_wrapper import LlamaWithLMClassifier
 from models.gptneox_wrapper import GPTNeoXWithLMClassifier
+from eval_utils import _select_random_subset
+import pandas as pd
 
 # Will error if the minimal version of Transformers is not installed. Remove at your own risks.
 check_min_version("4.23.1")
@@ -84,7 +86,7 @@ def main():
     # send_example_telemetry("run_glue", model_args, data_args)
 
     # Enable/disable wandb logging
-    # os.environ["WANDB_DISABLED"] = f"{wandb_args.disable_wandb}"
+    os.environ["WANDB_DISABLED"] = f"{wandb_args.disable_wandb}"
 
     # Setup logging
     logging.basicConfig(
@@ -246,7 +248,7 @@ def main():
     elif "facebook/opt" in model_args.model_name_or_path:
         if ft_args.target_tokens is not None:
             model = OPTWithLMClassifier.from_pretrained(
-                model_args.model_name_or_path,
+                model_args.model_name_or_path if model_args.model_local_path is None else model_args.model_local_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
                 config=config,
                 cache_dir=model_args.cache_dir,
@@ -256,7 +258,7 @@ def main():
             )
         else:
             model = OPTWithClassifier.from_pretrained(
-                model_args.model_name_or_path,
+                model_args.model_name_or_path if model_args.model_local_path is None else model_args.model_local_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
                 config=config,
                 cache_dir=model_args.cache_dir,
@@ -462,17 +464,42 @@ def main():
     # we fix the random seed that controls the sampling of the training data
     np.random.seed(training_args.data_seed)
 
+    context_distillation_dataset = pd.read_csv(data_args.context_distillation_data_path) if ft_args.context_distillation else None
+    # print(context_distillation_dataset)
+
+    def update_labels(examples):
+        result = examples.copy()
+        for idx, example_idx in enumerate(examples['idx']):
+            # print(idx, examples['idx'][idx], context_distillation_dataset['index'][idx])
+            assert examples['idx'][idx] == context_distillation_dataset['index'][idx]
+            assert example_idx == context_distillation_dataset['index'][idx]
+            result['label'][idx] = context_distillation_dataset['prediction'][idx]
+        return result
+
     if training_args.do_train:
         if "train" not in raw_datasets:
             raise ValueError("--do_train requires a train dataset")
         train_dataset = raw_datasets["train"]
-        if data_args.max_train_samples is not None:
-            # randomly select a subset of the training data
-            max_train_samples = min(
-                len(train_dataset), data_args.max_train_samples)
-            indices = np.random.choice(
-                range(len(train_dataset)), size=max_train_samples, replace=False)
-            train_dataset = train_dataset.select(indices)
+        print("Context Distillation: ", ft_args.context_distillation)
+        if ft_args.context_distillation:
+            train_dataset = _select_random_subset(raw_datasets["train"], 137)[0]
+            # train_dataset['labels'] = None
+            train_dataset.map(
+                update_labels,
+                batched=True,
+                batch_size=data_args.max_train_samples,
+                load_from_cache_file=not data_args.overwrite_cache,
+                desc="Running label update on training dataset",
+            )
+            print(train_dataset['label'], type(train_dataset['label']))
+        else:
+            if data_args.max_train_samples is not None:
+                # randomly select a subset of the training data
+                max_train_samples = min(
+                    len(train_dataset), data_args.max_train_samples)
+                indices = np.random.choice(
+                    range(len(train_dataset)), size=max_train_samples, replace=False)
+                train_dataset = train_dataset.select(indices)
 
     if training_args.do_eval:
         # we fix the random seed that controls the sampling of the validation data
