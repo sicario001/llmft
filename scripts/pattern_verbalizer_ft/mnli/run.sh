@@ -31,7 +31,7 @@ logging_steps=$((max_train_samples / (bsz * num_gpus)))
 
 for seed in "0"
 do
-    for data_seed in "3" "4" # "5" "6" "7" "8" "9" "0" 
+    for data_seed in "0" # "3" "4" # "5" "6" "7" "8" "9" "0" 
     do
         deepspeed \
             --include localhost:$CUDA_VISIBLE_DEVICES \

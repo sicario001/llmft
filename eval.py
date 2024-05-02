@@ -88,16 +88,10 @@ def _load_model(model_args):
         use_auth_token=True if model_args.use_auth_token else None,
     )
 
+    model = None
     if "facebook/opt" in model_args.model_name_or_path:
-        # print("92"*100)
-        # print(model_args.model_name_or_path, model_args.model_local_path)
-        if model_args.model_local_path is not None:
-            print("PRETRAINED FINE TUNED")
-            model = OPTWithLMClassifier.from_pretrained(
-                model_args.model_local_path,
-                torch_dtype=torch.float16,
-            )
-        else:
+        model_local_path = os.environ.get("model_local_path", None)
+        if model_local_path is None:
             model = OPTWithLMClassifier.from_pretrained(
                 model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
@@ -107,17 +101,11 @@ def _load_model(model_args):
                 use_auth_token=True if model_args.use_auth_token else None,
                 ignore_mismatched_sizes=model_args.ignore_mismatched_sizes,
             )
-        # print("PRINTING MODEL WEIGHTS")
-        # print(model.lm_head.weight.shape)
-        # print(model.lm_head.weight[0])
-        # print(model.lm_head.weight)
-        # print(model)
 
     # elif "gpt-j" in model_args.model_name_or_path:
     #     # We need to add a padding token for gpt-j
     #     tokenizer.pad_token = tokenizer.eos_token
     #     config.pad_token_id = tokenizer.eos_token_id
-
     elif "gpt-neox" in model_args.model_name_or_path or "pythia" in model_args.model_name_or_path or "RedPajama-INCITE" in model_args.model_name_or_path:
 
         model = GPTNeoXWithLMClassifier.from_pretrained(
@@ -155,6 +143,9 @@ def _load_model(model_args):
             config.pad_token_id)  # let's use the <unk> token
         tokenizer.padding_side = "right"
 
+    print("173"*100)
+    print("Model: ", model)
+
     return config, tokenizer, model
 
 
@@ -186,6 +177,16 @@ def main():
     # See all possible arguments in src/transformers/training_args.py
     # or by passing the --help flag to this script.
     # We now keep distinct sets of args, for a cleaner separation of concerns.
+    model_local_path = os.environ.get("MODEL_LOCAL_PATH", None)
+    print("MODEL LOCAL PATH: ", model_local_path)
+
+    model = OPTWithLMClassifier.from_pretrained(
+        model_local_path,
+        torch_dtype=torch.float16,
+    )
+    # for name, param in model.named_parameters():
+    #     print(f"Layer: {name}")
+    #     print(f"Weights: {param.data}")
 
     parser = HfArgumentParser(
         (ModelArguments, DataTrainingArguments, TrainingArguments, InContextLearningArguments))
@@ -274,7 +275,11 @@ def main():
 
     # ------------------ load model -------------------
 
-    config, tokenizer, model = _load_model(model_args)
+    if model_local_path:
+        config, tokenizer, _ = _load_model(model_args)
+    else:
+        model = None
+        config, tokenizer, model = _load_model(model_args)
 
     # -------------------------------------------------
 
@@ -589,6 +594,12 @@ def main():
             tokenizer, pad_to_multiple_of=8)
     else:
         data_collator = None
+
+    # checking again if the model parameters have not changed
+    # print("624"*100)
+    # for name, param in model.named_parameters():
+    #     print(f"Layer: {name}")
+    #     print(f"Weights: {param.data}")
 
     # Initialize our Trainer
     trainer = FtTrainer(

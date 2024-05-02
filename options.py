@@ -281,9 +281,6 @@ class ModelArguments:
             "choices": SUPPORTED_MODELS
         }
     )
-    model_local_path: Optional[str] = field(
-        default=None, metadata={"help": "Path to a local model."}
-    )
     config_name: Optional[str] = field(
         default=None, metadata={"help": "Pretrained config name or path if not the same as model_name"}
     )

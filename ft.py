@@ -248,7 +248,7 @@ def main():
     elif "facebook/opt" in model_args.model_name_or_path:
         if ft_args.target_tokens is not None:
             model = OPTWithLMClassifier.from_pretrained(
-                model_args.model_name_or_path if model_args.model_local_path is None else model_args.model_local_path,
+                model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
                 config=config,
                 cache_dir=model_args.cache_dir,
@@ -258,7 +258,7 @@ def main():
             )
         else:
             model = OPTWithClassifier.from_pretrained(
-                model_args.model_name_or_path if model_args.model_local_path is None else model_args.model_local_path,
+                model_args.model_name_or_path,
                 from_tf=bool(".ckpt" in model_args.model_name_or_path),
                 config=config,
                 cache_dir=model_args.cache_dir,
